@@ -1,0 +1,6 @@
+@PersonalUniverse.EventService.API_HostAddress = http://localhost:5249
+
+GET {{PersonalUniverse.EventService.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

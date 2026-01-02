@@ -1,0 +1,6 @@
+@PersonalUniverse.VisualizationFeed.API_HostAddress = http://localhost:5138
+
+GET {{PersonalUniverse.VisualizationFeed.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
