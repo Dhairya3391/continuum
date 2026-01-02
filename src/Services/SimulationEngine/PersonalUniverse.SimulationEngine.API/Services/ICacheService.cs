@@ -1,4 +1,4 @@
-using PersonalUniverse.Shared.Models;
+using PersonalUniverse.Shared.Models.Entities;
 
 namespace PersonalUniverse.SimulationEngine.API.Services;
 

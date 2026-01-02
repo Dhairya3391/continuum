@@ -1,4 +1,4 @@
-using PersonalUniverse.Shared.Models;
+using PersonalUniverse.Shared.Models.Entities;
 using StackExchange.Redis;
 using System.Text.Json;
 
@@ -29,7 +29,7 @@ public class RedisCacheService : ICacheService
                 return default;
             }
 
-            return JsonSerializer.Deserialize<T>(value!);
+            return JsonSerializer.Deserialize<T>((string)value!);
         }
         catch (Exception ex)
         {
@@ -91,7 +91,7 @@ public class RedisCacheService : ICacheService
                 return Enumerable.Empty<Particle>();
             }
 
-            return JsonSerializer.Deserialize<IEnumerable<Particle>>(value!) ?? Enumerable.Empty<Particle>();
+            return JsonSerializer.Deserialize<IEnumerable<Particle>>((string)value!) ?? Enumerable.Empty<Particle>();
         }
         catch (Exception ex)
         {
