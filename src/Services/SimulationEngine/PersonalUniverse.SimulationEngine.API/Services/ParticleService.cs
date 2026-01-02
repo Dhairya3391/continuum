@@ -16,16 +16,19 @@ public class ParticleService : IParticleService
 {
     private readonly IParticleRepository _particleRepository;
     private readonly IPersonalityMetricsRepository _metricsRepository;
+    private readonly ISimulationEventPublisher _eventPublisher;
     private readonly ILogger<ParticleService> _logger;
     private const double UniverseSize = 1000.0;
 
     public ParticleService(
         IParticleRepository particleRepository,
         IPersonalityMetricsRepository metricsRepository,
+        ISimulationEventPublisher eventPublisher,
         ILogger<ParticleService> logger)
     {
         _particleRepository = particleRepository;
         _metricsRepository = metricsRepository;
+        _eventPublisher = eventPublisher;
         _logger = logger;
     }
 

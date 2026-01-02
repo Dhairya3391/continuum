@@ -3,6 +3,7 @@ using PersonalUniverse.PersonalityProcessing.API.Services;
 using PersonalUniverse.Storage.API.Data;
 using PersonalUniverse.Storage.API.Repositories;
 using PersonalUniverse.Shared.Contracts.Interfaces;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,23 @@ builder.Services.AddScoped<IDailyInputRepository, DailyInputRepository>();
 
 // Register services
 builder.Services.AddScoped<IPersonalityService, PersonalityService>();
+
+// Add rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -46,6 +64,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 

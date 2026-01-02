@@ -22,6 +22,9 @@ builder.Services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(con
 // Register repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
+// Add HTTP client for inter-service communication
+builder.Services.AddHttpClient();
+
 // Register services
 builder.Services.AddSingleton<IJwtService, JwtService>();
 builder.Services.AddScoped<GoogleAuthService>();

@@ -184,27 +184,59 @@ public class PersonalityService : IPersonalityService
 
     private double AnalyzeSentiment(string text)
     {
-        // Simple rule-based sentiment analysis
+        // Enhanced rule-based sentiment analysis
         var lowerText = text.ToLower();
         double score = 0.0;
 
         // Positive words
-        string[] positiveWords = { "happy", "good", "great", "excited", "love", "excellent", "wonderful", "amazing", "joy", "better" };
+        string[] positiveWords = { 
+            "happy", "good", "great", "excited", "love", "excellent", "wonderful", "amazing", "joy", "better",
+            "awesome", "fantastic", "brilliant", "perfect", "delighted", "pleasant", "positive", "optimistic",
+            "motivated", "energized", "inspired", "proud", "grateful", "thankful", "satisfied", "content"
+        };
         foreach (var word in positiveWords)
         {
-            if (lowerText.Contains(word)) score += 0.2;
+            if (lowerText.Contains(word)) score += 0.15;
         }
 
         // Negative words
-        string[] negativeWords = { "sad", "bad", "terrible", "hate", "awful", "angry", "frustrated", "tired", "worse", "difficult" };
+        string[] negativeWords = { 
+            "sad", "bad", "terrible", "hate", "awful", "angry", "frustrated", "tired", "worse", "difficult",
+            "horrible", "depressed", "anxious", "stressed", "worried", "upset", "disappointed", "lonely",
+            "bored", "exhausted", "overwhelmed", "negative", "hopeless", "miserable", "unhappy"
+        };
         foreach (var word in negativeWords)
         {
-            if (lowerText.Contains(word)) score -= 0.2;
+            if (lowerText.Contains(word)) score -= 0.15;
         }
 
         // Social words increase social affinity
-        string[] socialWords = { "people", "friend", "together", "connect", "share", "community", "talk", "meet" };
+        string[] socialWords = { 
+            "people", "friend", "together", "connect", "share", "community", "talk", "meet",
+            "collaborate", "team", "group", "social", "party", "gathering", "conversation",
+            "relationship", "family", "network", "communicate"
+        };
         foreach (var word in socialWords)
+        {
+            if (lowerText.Contains(word)) score += 0.1;
+        }
+
+        // Curiosity words
+        string[] curiosityWords = { 
+            "learn", "explore", "discover", "curious", "wonder", "question", "why", "how",
+            "study", "research", "investigate", "experiment", "try", "new", "knowledge"
+        };
+        foreach (var word in curiosityWords)
+        {
+            if (lowerText.Contains(word)) score += 0.1;
+        }
+
+        // Aggressive/competitive words
+        string[] aggressiveWords = { 
+            "compete", "win", "fight", "challenge", "defeat", "dominate", "conquer",
+            "aggressive", "intense", "fierce", "battle", "rival"
+        };
+        foreach (var word in aggressiveWords)
         {
             if (lowerText.Contains(word)) score += 0.1;
         }

@@ -17,15 +17,24 @@ public class AuthenticationService : IAuthenticationService
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
     private readonly GoogleAuthService _googleAuthService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<AuthenticationService> _logger;
+    private readonly IConfiguration _configuration;
 
     public AuthenticationService(
         IUserRepository userRepository, 
         IJwtService jwtService,
-        GoogleAuthService googleAuthService)
+        GoogleAuthService googleAuthService,
+        IHttpClientFactory httpClientFactory,
+        ILogger<AuthenticationService> logger,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
         _googleAuthService = googleAuthService;
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<AuthenticationResult> RegisterAsync(UserRegistrationDto registrationDto, CancellationToken cancellationToken = default)
@@ -59,6 +68,9 @@ public class AuthenticationService : IAuthenticationService
 
         var userId = await _userRepository.AddAsync(user, cancellationToken);
         user.Id = userId;
+
+        // Spawn particle for new user
+        await SpawnParticleForUserAsync(userId, cancellationToken);
 
         // Generate tokens
         var token = _jwtService.GenerateToken(user);
@@ -150,6 +162,9 @@ public class AuthenticationService : IAuthenticationService
 
             var userId = await _userRepository.AddAsync(user, cancellationToken);
             user.Id = userId;
+            
+            // Spawn particle for new user
+            await SpawnParticleForUserAsync(userId, cancellationToken);
         }
 
         // Generate tokens
@@ -167,5 +182,34 @@ public class AuthenticationService : IAuthenticationService
         );
 
         return new AuthenticationResult(true, token, refreshToken, userDto, null);
+    }
+
+    private async Task SpawnParticleForUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var simulationEngineUrl = _configuration["Services:SimulationEngine:Url"] ?? "https://localhost:5004";
+            var httpClient = _httpClientFactory.CreateClient();
+            
+            var response = await httpClient.PostAsync(
+                $"{simulationEngineUrl}/api/particles/spawn/{userId}",
+                null,
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Successfully spawned particle for user {UserId}", userId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to spawn particle for user {UserId}. Status: {StatusCode}", 
+                    userId, response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't fail registration if particle spawning fails
+            _logger.LogError(ex, "Error spawning particle for user {UserId}. Registration will continue.", userId);
+        }
     }
 }

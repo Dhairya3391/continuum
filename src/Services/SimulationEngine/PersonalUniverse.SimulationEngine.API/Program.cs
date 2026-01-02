@@ -10,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
+
+// Add background services
+builder.Services.AddHostedService<PersonalUniverse.SimulationEngine.API.BackgroundServices.UniverseTickBackgroundService>();
 
 // Add database connection factory
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -21,9 +25,23 @@ builder.Services.AddScoped<IParticleRepository, ParticleRepository>();
 builder.Services.AddScoped<IPersonalityMetricsRepository, PersonalityMetricsRepository>();
 builder.Services.AddScoped<IUniverseStateRepository, UniverseStateRepository>();
 
+// Configure RabbitMQ event publishing
+var rabbitMqSettings = new RabbitMqSettings
+{
+    Host = builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
+    Port = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
+    Username = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
+    Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
+    VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
+    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personal_universe_events"
+};
+builder.Services.AddSingleton(rabbitMqSettings);
+builder.Services.AddSingleton<ISimulationEventPublisher, SimulationEventPublisher>();
+
 // Register services
 builder.Services.AddScoped<IParticleService, ParticleService>();
 builder.Services.AddScoped<ISimulationService, SimulationService>();
+builder.Services.AddScoped<IInteractionService, InteractionService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

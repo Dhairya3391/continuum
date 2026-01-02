@@ -1,6 +1,6 @@
 # Getting Started with Personal Universe Simulator
 
-## Quick Start Guide
+## Setup and Hosting Guide
 
 ### 1. Prerequisites
 
