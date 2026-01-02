@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PersonalUniverse.PersonalityProcessing.API.Services;
 using PersonalUniverse.Shared.Models.DTOs;
 
@@ -6,6 +7,7 @@ namespace PersonalUniverse.PersonalityProcessing.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class PersonalityController : ControllerBase
 {
     private readonly IPersonalityService _personalityService;

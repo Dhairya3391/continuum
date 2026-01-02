@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PersonalUniverse.SimulationEngine.API.Services;
 using PersonalUniverse.Shared.Models.DTOs;
 
@@ -6,6 +7,7 @@ namespace PersonalUniverse.SimulationEngine.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ParticlesController : ControllerBase
 {
     private readonly IParticleService _particleService;

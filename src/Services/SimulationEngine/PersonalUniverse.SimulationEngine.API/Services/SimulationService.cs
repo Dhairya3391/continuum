@@ -1,6 +1,7 @@
 using PersonalUniverse.Shared.Contracts.Interfaces;
 using PersonalUniverse.Shared.Models.Entities;
 using PersonalUniverse.Shared.Models.DTOs;
+using PersonalUniverse.Shared.Contracts.Events;
 
 namespace PersonalUniverse.SimulationEngine.API.Services;
 
@@ -16,6 +17,9 @@ public class SimulationService : ISimulationService
     private readonly IParticleRepository _particleRepository;
     private readonly IPersonalityMetricsRepository _metricsRepository;
     private readonly IUniverseStateRepository _stateRepository;
+    private readonly IInteractionService _interactionService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<SimulationService> _logger;
     private const double InteractionRadius = 50.0;
 
@@ -23,11 +27,17 @@ public class SimulationService : ISimulationService
         IParticleRepository particleRepository,
         IPersonalityMetricsRepository metricsRepository,
         IUniverseStateRepository stateRepository,
+        IInteractionService interactionService,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
         ILogger<SimulationService> logger)
     {
         _particleRepository = particleRepository;
         _metricsRepository = metricsRepository;
         _stateRepository = stateRepository;
+        _interactionService = interactionService;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -109,8 +119,15 @@ public class SimulationService : ISimulationService
             await _particleRepository.UpdateAsync(particle, cancellationToken);
 
             // Find and process interactions
-            var neighbors = await FindNearbyParticles(particle, InteractionRadius, cancellationToken);
-            interactionCount += neighbors.Count();
+            if (particle.State == ParticleState.Active)
+            {
+                var neighbors = await FindNearbyParticles(particle, InteractionRadius, cancellationToken);
+                foreach (var neighbor in neighbors.Where(n => n.State == ParticleState.Active))
+                {
+                    await ProcessInteractionAsync(particle, neighbor, cancellationToken);
+                    interactionCount++;
+                }
+            }
         }
 
         // Save universe state snapshot
@@ -173,5 +190,185 @@ public class SimulationService : ISimulationService
         var dx = p1.PositionX - p2.PositionX;
         var dy = p1.PositionY - p2.PositionY;
         return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    private async Task ProcessInteractionAsync(Particle p1, Particle p2, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var interactionResult = await _interactionService.EvaluateInteractionAsync(p1.Id, p2.Id, cancellationToken);
+            
+            switch (interactionResult.Type)
+            {
+                case InteractionType.Merge:
+                    await HandleMergeAsync(p1, p2, interactionResult.Strength, cancellationToken);
+                    break;
+                    
+                case InteractionType.Bond:
+                    await HandleBondAsync(p1, p2, interactionResult.Strength, cancellationToken);
+                    break;
+                    
+                case InteractionType.Repel:
+                    await HandleRepelAsync(p1, p2, interactionResult.Strength, cancellationToken);
+                    break;
+                    
+                case InteractionType.Attract:
+                    await HandleAttractAsync(p1, p2, interactionResult.Strength, cancellationToken);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing interaction between {P1} and {P2}", p1.Id, p2.Id);
+        }
+    }
+
+    private async Task HandleMergeAsync(Particle p1, Particle p2, double strength, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Merging particles {P1} and {P2} with strength {Strength}", p1.Id, p2.Id, strength);
+        
+        // Merge into p1, expire p2
+        p1.Mass += p2.Mass;
+        p1.Energy = Math.Min(100, p1.Energy + (p2.Energy * 0.5));
+        p2.State = ParticleState.Expired;
+        
+        await _particleRepository.UpdateAsync(p1, cancellationToken);
+        await _particleRepository.UpdateAsync(p2, cancellationToken);
+        
+        // Publish event
+        await PublishEventAsync(new ParticleMergedEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            p2.Id,
+            p1.Id,
+            p1.Id
+        ));
+    }
+
+    private async Task HandleBondAsync(Particle p1, Particle p2, double strength, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("Bonding particles {P1} and {P2} with strength {Strength}", p1.Id, p2.Id, strength);
+        
+        // Align velocities (move together)
+        var avgVelX = (p1.VelocityX + p2.VelocityX) / 2;
+        var avgVelY = (p1.VelocityY + p2.VelocityY) / 2;
+        
+        p1.VelocityX = avgVelX * 0.7 + p1.VelocityX * 0.3;
+        p1.VelocityY = avgVelY * 0.7 + p1.VelocityY * 0.3;
+        p2.VelocityX = avgVelX * 0.7 + p2.VelocityX * 0.3;
+        p2.VelocityY = avgVelY * 0.7 + p2.VelocityY * 0.3;
+        
+        // Small energy exchange
+        p1.Energy = Math.Min(100, p1.Energy + 1);
+        p2.Energy = Math.Min(100, p2.Energy + 1);
+        
+        await _particleRepository.UpdateAsync(p1, cancellationToken);
+        await _particleRepository.UpdateAsync(p2, cancellationToken);
+        
+        // Publish event
+        await PublishEventAsync(new ParticleInteractionEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            p1.Id,
+            p2.Id,
+            "Bond",
+            strength
+        ));
+    }
+
+    private async Task HandleRepelAsync(Particle p1, Particle p2, double strength, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("Repelling particles {P1} and {P2} with strength {Strength}", p1.Id, p2.Id, strength);
+        
+        // Calculate repulsion vector
+        var dx = p1.PositionX - p2.PositionX;
+        var dy = p1.PositionY - p2.PositionY;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0)
+        {
+            var force = strength * 0.5;
+            p1.VelocityX += (dx / distance) * force;
+            p1.VelocityY += (dy / distance) * force;
+            p2.VelocityX -= (dx / distance) * force;
+            p2.VelocityY -= (dy / distance) * force;
+            
+            // Clamp velocities
+            p1.VelocityX = Math.Clamp(p1.VelocityX, -5, 5);
+            p1.VelocityY = Math.Clamp(p1.VelocityY, -5, 5);
+            p2.VelocityX = Math.Clamp(p2.VelocityX, -5, 5);
+            p2.VelocityY = Math.Clamp(p2.VelocityY, -5, 5);
+            
+            await _particleRepository.UpdateAsync(p1, cancellationToken);
+            await _particleRepository.UpdateAsync(p2, cancellationToken);
+        }
+        
+        // Publish event
+        await PublishEventAsync(new ParticleRepelledEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            p1.Id,
+            p2.Id,
+            strength
+        ));
+    }
+
+    private async Task HandleAttractAsync(Particle p1, Particle p2, double strength, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("Attracting particles {P1} and {P2} with strength {Strength}", p1.Id, p2.Id, strength);
+        
+        // Calculate attraction vector
+        var dx = p2.PositionX - p1.PositionX;
+        var dy = p2.PositionY - p1.PositionY;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0)
+        {
+            var force = strength * 0.2;
+            p1.VelocityX += (dx / distance) * force;
+            p1.VelocityY += (dy / distance) * force;
+            
+            // Clamp velocities
+            p1.VelocityX = Math.Clamp(p1.VelocityX, -5, 5);
+            p1.VelocityY = Math.Clamp(p1.VelocityY, -5, 5);
+            
+            await _particleRepository.UpdateAsync(p1, cancellationToken);
+        }
+        
+        // Publish event
+        await PublishEventAsync(new ParticleInteractionEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            p1.Id,
+            p2.Id,
+            "Attract",
+            strength
+        ));
+    }
+
+    private async Task PublishEventAsync(BaseEvent @event)
+    {
+        try
+        {
+            var eventServiceUrl = _configuration["Services:EventService:Url"] ?? "https://localhost:5005";
+            var httpClient = _httpClientFactory.CreateClient();
+            
+            string endpoint = @event switch
+            {
+                ParticleMergedEvent => "particle/merged",
+                ParticleRepelledEvent => "particle/repelled",
+                ParticleInteractionEvent => "particle/interaction",
+                _ => null
+            };
+            
+            if (endpoint != null)
+            {
+                await httpClient.PostAsJsonAsync($"{eventServiceUrl}/api/events/{endpoint}", @event);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish event {EventType}", @event.GetType().Name);
+        }
     }
 }

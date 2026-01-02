@@ -17,6 +17,7 @@ public class ParticleService : IParticleService
     private readonly IParticleRepository _particleRepository;
     private readonly IPersonalityMetricsRepository _metricsRepository;
     private readonly ISimulationEventPublisher _eventPublisher;
+    private readonly ICacheService _cacheService;
     private readonly ILogger<ParticleService> _logger;
     private const double UniverseSize = 1000.0;
 
@@ -24,11 +25,13 @@ public class ParticleService : IParticleService
         IParticleRepository particleRepository,
         IPersonalityMetricsRepository metricsRepository,
         ISimulationEventPublisher eventPublisher,
+        ICacheService cacheService,
         ILogger<ParticleService> logger)
     {
         _particleRepository = particleRepository;
         _metricsRepository = metricsRepository;
         _eventPublisher = eventPublisher;
+        _cacheService = cacheService;
         _logger = logger;
     }
 
@@ -85,8 +88,24 @@ public class ParticleService : IParticleService
 
     public async Task<IEnumerable<ParticleDto>> GetActiveParticlesAsync(CancellationToken cancellationToken = default)
     {
+        // Try to get from cache first
+        var cachedParticles = await _cacheService.GetActiveParticlesAsync(cancellationToken);
+        if (cachedParticles.Any())
+        {
+            return cachedParticles.Select(MapToDto);
+        }
+
+        // Fallback to database
         var particles = await _particleRepository.GetActiveParticlesAsync(cancellationToken);
-        return particles.Select(MapToDto);
+        var particleList = particles.ToList();
+        
+        // Cache for future requests
+        if (particleList.Any())
+        {
+            await _cacheService.SetActiveParticlesAsync(particleList, cancellationToken);
+        }
+        
+        return particleList.Select(MapToDto);
     }
 
     public async Task<ParticleDto?> GetParticleByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
