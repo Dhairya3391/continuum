@@ -12,7 +12,7 @@ public class RabbitMqSettings
     public string Username { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string VirtualHost { get; set; } = "/";
-    public string ExchangeName { get; set; } = "personal_universe_events";
+    public string ExchangeName { get; set; } = "personaluniverse.events";
 }
 
 public interface ISimulationEventPublisher

@@ -7,6 +7,6 @@ public class RabbitMqSettings
     public string UserName { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string VirtualHost { get; set; } = "/";
-    public string ExchangeName { get; set; } = "universe.events";
+    public string ExchangeName { get; set; } = "personaluniverse.events";
     public string ExchangeType { get; set; } = "topic";
 }

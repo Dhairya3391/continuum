@@ -197,7 +197,8 @@ EventLogs (Id, EventType, ParticleId, Data, Timestamp)
 - IMPLEMENTATION_STATUS.md: Progress tracking
 - PROJECT_STATUS.md: Current state
 - ENVIRONMENT_CONFIG.md: Configuration guide
-- DOCKER_TESTING.md: Complete Docker testing guide (NEW)
+- DOCKER_TESTING.md: Complete Docker testing guide
+- **DEPLOYMENT.md: Production deployment guide with cloud services** ✨
 - API documentation via Scalar OpenAPI
 
 ## 🎯 Academic Requirements Met
@@ -257,14 +258,42 @@ EventLogs (Id, EventType, ParticleId, Data, Timestamp)
 - **Lines of Code**: ~5,000+ (estimated)
 - **Services**: 6 microservices
 - **Repositories**: 5 data repositories
-- **Docker Containers**: 9 (6 services + SQL + RabbitMQ + Redis)
+- **Docker Containers**: 6 application services (production-ready)
 - **NuGet Packages**: 30+
 - **API Endpoints**: 15+
 - **Test Files**: 2 (Infrastructure + E2E)
+- **Deployment**: Cloud-ready with Azure/AWS/GCP support
 
 ## 🚀 How to Run
 
-### Option 1: Docker Compose (Recommended)
+### Production Deployment (Cloud Services)
+
+**For production deployment with cloud-hosted database, Redis, and RabbitMQ:**
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete production setup guide including:
+- Azure SQL Database / AWS RDS setup
+- CloudAMQP / Azure Service Bus configuration
+- Redis Cloud / Azure Cache for Redis setup
+- Environment variable configuration
+- Container deployment (Azure Container Instances, AWS ECS, Google Cloud Run)
+- SSL/TLS setup with Nginx
+- Monitoring and scaling strategies
+
+Quick start:
+```bash
+# 1. Set up cloud services (see DEPLOYMENT.md)
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env with your cloud service credentials
+
+# 3. Build and deploy
+docker-compose build
+docker-compose up -d
+
+# Services will connect to your cloud infrastructure
+```
+
+### Option 1: Docker Compose (Local Development)
 ```bash
 # Clone repository
 git clone <repository-url>
@@ -273,25 +302,30 @@ cd continuum
 # Set up environment
 cp .env.example .env
 
-# Build and run
+# Build and run (includes local SQL, RabbitMQ, Redis containers)
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
 
 # Access services
-# - Identity: http://localhost:5000
-# - Simulation Engine: http://localhost:5003
+# - Identity: http://localhost:5001
+# - Storage: http://localhost:5002
+# - Personality: http://localhost:5003
+# - Simulation Engine: http://localhost:5004
+# - Event Service: http://localhost:5005
+# - Visualization: http://localhost:5006
 # - RabbitMQ UI: http://localhost:15672
-# - Hangfire: http://localhost:5003/hangfire
+# - Hangfire: http://localhost:5004/hangfire
 ```
 
-### Option 2: Local Development
+### Option 2: Local Development (Services only)
 ```bash
-# Start infrastructure
-docker-compose up -d sql rabbitmq redis
+# Start infrastructure only (local testing)
+# Note: For production, use cloud services instead
+docker-compose up -d
 
-# Run services individually
+# Run services individually with dotnet
 cd src/Services/Identity/PersonalUniverse.Identity.API
 dotnet run
 
@@ -311,22 +345,27 @@ See [DOCKER_TESTING.md](DOCKER_TESTING.md) for complete testing guide.
 Quick example:
 ```bash
 # 1. Register
-curl -X POST http://localhost:5000/api/auth/register \
+curl -X POST http://localhost:5001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"user1","email":"user1@test.com","password":"Test123!"}'
 
-# 2. Spawn particle
-curl -X POST http://localhost:5003/api/particles/spawn/{userId} \
+# 2. Login
+curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"user1","password":"Test123!"}'
+
+# 3. Spawn particle
+curl -X POST http://localhost:5004/api/particles/spawn/{userId} \
   -H "Authorization: Bearer {token}"
 
-# 3. Submit daily input
-curl -X POST http://localhost:5002/api/personality/input \
+# 4. Submit daily input
+curl -X POST http://localhost:5003/api/personality/input \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{"userId":"{userId}","particleId":"{particleId}","question":"How are you?","response":"Feeling great!"}'
 
-# 4. Check metrics
-curl http://localhost:5002/api/personality/metrics/{particleId} \
+# 5. Check metrics
+curl http://localhost:5003/api/personality/metrics/{particleId} \
   -H "Authorization: Bearer {token}"
 ```
 

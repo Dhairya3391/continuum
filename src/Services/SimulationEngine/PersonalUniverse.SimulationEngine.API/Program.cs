@@ -40,7 +40,7 @@ var rabbitMqSettings = new RabbitMqSettings
     Username = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
     Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
     VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
-    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personal_universe_events"
+    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events"
 };
 builder.Services.AddSingleton(rabbitMqSettings);
 builder.Services.AddSingleton<ISimulationEventPublisher, SimulationEventPublisher>();

@@ -11,9 +11,9 @@ builder.Services.AddOpenApi();
 // Configure RabbitMQ settings
 var rabbitMqSettings = new RabbitMqSettings
 {
-    HostName = builder.Configuration.GetValue<string>("RabbitMQ:HostName") ?? "localhost",
+    HostName = builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
     Port = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
-    UserName = builder.Configuration.GetValue<string>("RabbitMQ:UserName") ?? "guest",
+    UserName = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
     Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
     VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
     ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "universe.events",
