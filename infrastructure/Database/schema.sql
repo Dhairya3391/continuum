@@ -101,6 +101,7 @@ CREATE TABLE UniverseStates (
     INDEX IX_UniverseStates_TickNumber (TickNumber DESC),
     INDEX IX_UniverseStates_Timestamp (Timestamp DESC)
 );
+GO
 
 -- DailyInputLimits View (for rate limiting)
 CREATE VIEW vw_DailyInputCounts AS
@@ -110,3 +111,4 @@ SELECT
     COUNT(*) AS InputCount
 FROM DailyInputs
 GROUP BY UserId, CAST(SubmittedAt AS DATE);
+GO

@@ -4,8 +4,8 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Scalar.AspNetCore;
 using PersonalUniverse.Identity.API.Services;
-using PersonalUniverse.Storage.API.Data;
-using PersonalUniverse.Storage.API.Repositories;
+using PersonalUniverse.Identity.API.Data;
+using PersonalUniverse.Identity.API.Repositories;
 using PersonalUniverse.Shared.Contracts.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,11 +83,17 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-}
+    options.WithTitle("Personal Universe - Identity Service")
+           .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+
+// Add health check endpoint
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "Identity", timestamp = DateTime.UtcNow }))
+   .WithName("HealthCheck")
+   .WithOpenApi();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
