@@ -1,123 +1,26 @@
+# Docker Compose for Local Development (Optional)
+# Note: All infrastructure is hosted externally (SQL Server, Redis, RabbitMQ)
+# This file is only needed if you want to run everything in containers
+
+version: '3.8'
+
 services:
-  identity-service:
-    build:
-      context: .
-      dockerfile: src/Services/Identity/PersonalUniverse.Identity.API/Dockerfile
-    container_name: personaluniverse-identity
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-      - Jwt__SecretKey=${JWT_SECRET_KEY}
-      - Jwt__Issuer=${JWT_ISSUER}
-      - Jwt__Audience=${JWT_AUDIENCE}
-      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES}
-      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
-    ports:
-      - "5001:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
-
-  storage-service:
-    build:
-      context: .
-      dockerfile: src/Services/Storage/PersonalUniverse.Storage.API/Dockerfile
-    container_name: personaluniverse-storage
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-    ports:
-      - "5002:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
-
-  personality-service:
-    build:
-      context: .
-      dockerfile: src/Services/PersonalityProcessing/PersonalUniverse.PersonalityProcessing.API/Dockerfile
-    container_name: personaluniverse-personality
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-      - Jwt__SecretKey=${JWT_SECRET_KEY}
-      - Jwt__Issuer=${JWT_ISSUER}
-      - Jwt__Audience=${JWT_AUDIENCE}
-      - RabbitMQ__Host=${RABBITMQ_HOST}
-      - RabbitMQ__Port=${RABBITMQ_PORT}
-      - RabbitMQ__Username=${RABBITMQ_USERNAME}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
-      - RabbitMQ__VirtualHost=${RABBITMQ_VHOST}
-      - RabbitMQ__ExchangeName=${RABBITMQ_EXCHANGE}
-    ports:
-      - "5003:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
-
-  simulation-service:
-    build:
-      context: .
-      dockerfile: src/Services/SimulationEngine/PersonalUniverse.SimulationEngine.API/Dockerfile
-    container_name: personaluniverse-simulation
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-      - ConnectionStrings__Redis=${REDIS_CONNECTION_STRING}
-      - Jwt__SecretKey=${JWT_SECRET_KEY}
-      - Jwt__Issuer=${JWT_ISSUER}
-      - Jwt__Audience=${JWT_AUDIENCE}
-      - RabbitMQ__Host=${RABBITMQ_HOST}
-      - RabbitMQ__Port=${RABBITMQ_PORT}
-      - RabbitMQ__Username=${RABBITMQ_USERNAME}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
-      - RabbitMQ__VirtualHost=${RABBITMQ_VHOST}
-      - RabbitMQ__ExchangeName=${RABBITMQ_EXCHANGE}
-    ports:
-      - "5004:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
-
-  event-service:
-    build:
-      context: .
-      dockerfile: src/Services/EventService/PersonalUniverse.EventService.API/Dockerfile
-    container_name: personaluniverse-events
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - RabbitMQ__Host=${RABBITMQ_HOST}
-      - RabbitMQ__Port=${RABBITMQ_PORT}
-      - RabbitMQ__Username=${RABBITMQ_USERNAME}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
-      - RabbitMQ__VirtualHost=${RABBITMQ_VHOST}
-      - RabbitMQ__ExchangeName=${RABBITMQ_EXCHANGE}
-    ports:
-      - "5005:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
-
-  visualization-service:
-    build:
-      context: .
-      dockerfile: src/Services/VisualizationFeed/PersonalUniverse.VisualizationFeed.API/Dockerfile
-    container_name: personaluniverse-visualization
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
-    ports:
-      - "5006:80"
-    networks:
-      - personaluniverse-network
-    restart: unless-stopped
+  # Uncomment services below if you want to containerize the .NET applications
+  # By default, run services locally with: dotnet run or ./scripts/run-all.sh
+  
+  # identity-service:
+  #   build:
+  #     context: .
+  #     dockerfile: src/Services/Identity/PersonalUniverse.Identity.API/Dockerfile
+  #   ports:
+  #     - "5001:8080"
+  #   environment:
+  #     - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+  #     - Jwt__SecretKey=${JWT_SECRET_KEY}
+  #   env_file:
+  #     - .env
 
 networks:
   personaluniverse-network:
     driver: bridge
+

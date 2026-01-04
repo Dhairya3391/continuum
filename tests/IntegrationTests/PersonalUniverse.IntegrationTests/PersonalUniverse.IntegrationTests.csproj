@@ -24,4 +24,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../../src/Shared/Models/PersonalUniverse.Shared.Models/PersonalUniverse.Shared.Models.csproj" />
+    <ProjectReference Include="../../../src/Shared/Contracts/PersonalUniverse.Shared.Contracts/PersonalUniverse.Shared.Contracts.csproj" />
+    <ProjectReference Include="../../../src/Services/Identity/PersonalUniverse.Identity.API/PersonalUniverse.Identity.API.csproj" />
+    <ProjectReference Include="../../../src/Services/SimulationEngine/PersonalUniverse.SimulationEngine.API/PersonalUniverse.SimulationEngine.API.csproj" />
+  </ItemGroup>
+
 </Project>

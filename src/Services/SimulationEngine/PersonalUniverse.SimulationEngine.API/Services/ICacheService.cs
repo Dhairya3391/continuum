@@ -10,4 +10,9 @@ public interface ICacheService
     Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
     Task<IEnumerable<Particle>> GetActiveParticlesAsync(CancellationToken cancellationToken = default);
     Task SetActiveParticlesAsync(IEnumerable<Particle> particles, CancellationToken cancellationToken = default);
+    Task CacheParticleAsync(Particle particle, CancellationToken cancellationToken = default);
+    Task<Particle?> GetParticleAsync(Guid particleId, CancellationToken cancellationToken = default);
+    Task InvalidateParticleAsync(Guid particleId, CancellationToken cancellationToken = default);
+    Task CachePersonalityMetricsAsync(PersonalityMetrics metrics, CancellationToken cancellationToken = default);
+    Task<PersonalityMetrics?> GetPersonalityMetricsAsync(Guid particleId, CancellationToken cancellationToken = default);
 }

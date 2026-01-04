@@ -1,4 +1,5 @@
 using PersonalUniverse.EventService.API.Services;
+using PersonalUniverse.EventService.API.BackgroundServices;
 using PersonalUniverse.Shared.Contracts.Events;
 using Scalar.AspNetCore;
 
@@ -16,13 +17,16 @@ var rabbitMqSettings = new RabbitMqSettings
     UserName = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
     Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
     VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
-    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "universe.events",
+    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events",
     ExchangeType = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeType") ?? "topic"
 };
 
 builder.Services.AddSingleton(rabbitMqSettings);
 builder.Services.AddSingleton<IEventPublisher, EventPublisher>();
 builder.Services.AddSingleton<IEventSubscriber, EventSubscriber>();
+
+// Add background service for event consumption
+builder.Services.AddHostedService<EventConsumerBackgroundService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

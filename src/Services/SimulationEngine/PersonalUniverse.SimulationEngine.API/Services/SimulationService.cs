@@ -2,6 +2,7 @@ using PersonalUniverse.Shared.Contracts.Interfaces;
 using PersonalUniverse.Shared.Models.Entities;
 using PersonalUniverse.Shared.Models.DTOs;
 using PersonalUniverse.Shared.Contracts.Events;
+using PersonalUniverse.Shared.Models.Mappers;
 
 namespace PersonalUniverse.SimulationEngine.API.Services;
 
@@ -51,18 +52,7 @@ public class SimulationService : ISimulationService
 
         var averageEnergy = particleList.Any() ? particleList.Average(p => p.Energy) : 0;
 
-        var particleDtos = particleList.Select(p => new ParticleDto(
-            p.Id,
-            p.UserId,
-            p.PositionX,
-            p.PositionY,
-            p.VelocityX,
-            p.VelocityY,
-            p.Mass,
-            p.Energy,
-            p.State.ToString(),
-            p.DecayLevel
-        )).ToList();
+        var particleDtos = ParticleMapper.ToDtos(particleList).ToList();
 
         return new UniverseStateDto(
             tickNumber,
@@ -117,6 +107,16 @@ public class SimulationService : ISimulationService
 
             // Update particle
             await _particleRepository.UpdateAsync(particle, cancellationToken);
+
+            // Check if particle should split (high instability)
+            if (particle.State == ParticleState.Active)
+            {
+                if (await ShouldSplitParticleAsync(particle, cancellationToken))
+                {
+                    await HandleSplitAsync(particle, cancellationToken);
+                    _logger.LogInformation("Particle {ParticleId} split due to high instability", particle.Id);
+                }
+            }
 
             // Find and process interactions
             if (particle.State == ParticleState.Active)
@@ -346,6 +346,136 @@ public class SimulationService : ISimulationService
         ));
     }
 
+    private async Task<bool> ShouldSplitParticleAsync(Particle particle, CancellationToken cancellationToken)
+    {
+        // Particles split when they have high internal conflict/instability
+        // Conditions: high mass, high aggression, low stability, high energy variance
+        
+        if (particle.Mass < 2.0) return false; // Too small to split
+        if (particle.Energy < 40) return false; // Not enough energy to sustain two particles
+        
+        var metrics = await _metricsRepository.GetLatestByParticleIdAsync(particle.Id, cancellationToken);
+        if (metrics == null) return false;
+        
+        // High aggression + low stability = internal conflict
+        var instability = metrics.Aggression * (1.0 - metrics.Stability);
+        
+        // Split threshold: instability > 0.6 and random chance
+        if (instability > 0.6)
+        {
+            // 20% chance per tick when unstable
+            var random = new Random();
+            return random.NextDouble() < 0.2;
+        }
+        
+        return false;
+    }
+
+    private async Task HandleSplitAsync(Particle sourceParticle, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Splitting particle {ParticleId} due to high instability", sourceParticle.Id);
+        
+        // Get source personality metrics
+        var sourceMetrics = await _metricsRepository.GetLatestByParticleIdAsync(sourceParticle.Id, cancellationToken);
+        if (sourceMetrics == null) return;
+        
+        // Create two new particles from the split
+        var splitParticles = new List<Guid>();
+        
+        // Split mass and energy
+        var splitMass = sourceParticle.Mass / 2.0;
+        var splitEnergy = sourceParticle.Energy * 0.45; // Lose 10% energy in split
+        
+        // Create first split particle (more aggressive variant)
+        var particle1 = new Particle
+        {
+            Id = Guid.NewGuid(),
+            UserId = sourceParticle.UserId,
+            PositionX = sourceParticle.PositionX + Random.Shared.Next(-10, 10),
+            PositionY = sourceParticle.PositionY + Random.Shared.Next(-10, 10),
+            VelocityX = sourceParticle.VelocityX + Random.Shared.NextDouble() * 2 - 1,
+            VelocityY = sourceParticle.VelocityY + Random.Shared.NextDouble() * 2 - 1,
+            Mass = splitMass,
+            Energy = splitEnergy,
+            State = ParticleState.Active,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdatedAt = DateTime.UtcNow,
+            LastInputAt = sourceParticle.LastInputAt,
+            DecayLevel = sourceParticle.DecayLevel
+        };
+        
+        await _particleRepository.AddAsync(particle1, cancellationToken);
+        splitParticles.Add(particle1.Id);
+        
+        // Create personality metrics for particle1 (emphasize aggression)
+        var metrics1 = new PersonalityMetrics
+        {
+            Id = Guid.NewGuid(),
+            ParticleId = particle1.Id,
+            Curiosity = sourceMetrics.Curiosity * 1.1,
+            SocialAffinity = sourceMetrics.SocialAffinity * 0.7, // Less social
+            Aggression = Math.Min(1.0, sourceMetrics.Aggression * 1.3), // More aggressive
+            Stability = sourceMetrics.Stability * 0.8, // Less stable
+            GrowthPotential = sourceMetrics.GrowthPotential,
+            CalculatedAt = DateTime.UtcNow,
+            Version = sourceMetrics.Version + 1
+        };
+        await _metricsRepository.AddAsync(metrics1, cancellationToken);
+        
+        // Create second split particle (more stable variant)
+        var particle2 = new Particle
+        {
+            Id = Guid.NewGuid(),
+            UserId = sourceParticle.UserId,
+            PositionX = sourceParticle.PositionX + Random.Shared.Next(-10, 10),
+            PositionY = sourceParticle.PositionY + Random.Shared.Next(-10, 10),
+            VelocityX = sourceParticle.VelocityX - (Random.Shared.NextDouble() * 2 - 1),
+            VelocityY = sourceParticle.VelocityY - (Random.Shared.NextDouble() * 2 - 1),
+            Mass = splitMass,
+            Energy = splitEnergy,
+            State = ParticleState.Active,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdatedAt = DateTime.UtcNow,
+            LastInputAt = sourceParticle.LastInputAt,
+            DecayLevel = sourceParticle.DecayLevel
+        };
+        
+        await _particleRepository.AddAsync(particle2, cancellationToken);
+        splitParticles.Add(particle2.Id);
+        
+        // Create personality metrics for particle2 (emphasize stability)
+        var metrics2 = new PersonalityMetrics
+        {
+            Id = Guid.NewGuid(),
+            ParticleId = particle2.Id,
+            Curiosity = sourceMetrics.Curiosity * 0.9,
+            SocialAffinity = Math.Min(1.0, sourceMetrics.SocialAffinity * 1.2), // More social
+            Aggression = sourceMetrics.Aggression * 0.7, // Less aggressive
+            Stability = Math.Min(1.0, sourceMetrics.Stability * 1.3), // More stable
+            GrowthPotential = sourceMetrics.GrowthPotential,
+            CalculatedAt = DateTime.UtcNow,
+            Version = sourceMetrics.Version + 1
+        };
+        await _metricsRepository.AddAsync(metrics2, cancellationToken);
+        
+        // Mark source particle as expired
+        sourceParticle.State = ParticleState.Expired;
+        await _particleRepository.UpdateAsync(sourceParticle, cancellationToken);
+        
+        // Publish split event
+        await PublishEventAsync(new ParticleSplitEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            sourceParticle.Id,
+            splitParticles
+        ));
+        
+        _logger.LogInformation(
+            "Particle {SourceId} split into {Particle1} and {Particle2}",
+            sourceParticle.Id, particle1.Id, particle2.Id
+        );
+    }
+
     private async Task PublishEventAsync(BaseEvent @event)
     {
         try
@@ -353,9 +483,10 @@ public class SimulationService : ISimulationService
             var eventServiceUrl = _configuration["Services:EventService:Url"] ?? "https://localhost:5005";
             var httpClient = _httpClientFactory.CreateClient();
             
-            string endpoint = @event switch
+            string? endpoint = @event switch
             {
                 ParticleMergedEvent => "particle/merged",
+                ParticleSplitEvent => "particle/split",
                 ParticleRepelledEvent => "particle/repelled",
                 ParticleInteractionEvent => "particle/interaction",
                 _ => null

@@ -16,9 +16,6 @@ public class GoogleAuthService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Validates Google ID token and returns user information
-    /// </summary>
     public async Task<GoogleUserInfo?> ValidateGoogleTokenAsync(string idToken)
     {
         try

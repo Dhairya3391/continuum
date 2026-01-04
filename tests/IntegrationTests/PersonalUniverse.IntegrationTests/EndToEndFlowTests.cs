@@ -54,14 +54,13 @@ public class EndToEndFlowTests : IClassFixture<IntegrationTestFactory>
         particle.State.Should().Be("Active");
 
         // Step 3: Submit daily input
-        var inputDto = new DailyInputDto
-        {
-            UserId = registerResult.UserId,
-            ParticleId = particle.Id,
-            Question = "How are you feeling today?",
-            Response = "I'm feeling curious and energetic!",
-            Timestamp = DateTime.UtcNow
-        };
+        var inputDto = new DailyInputDto(
+            UserId: registerResult.UserId,
+            InputType: "text",
+            Question: "How are you feeling today?",
+            Response: "I'm feeling curious and energetic!",
+            NumericValue: null
+        );
 
         var inputResponse = await _client.PostAsJsonAsync("/api/personality/input", inputDto);
         inputResponse.StatusCode.Should().Be(HttpStatusCode.OK);

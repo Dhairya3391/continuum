@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using PersonalUniverse.Identity.API;
 using Testcontainers.MsSql;
 using Testcontainers.RabbitMq;
 using Testcontainers.Redis;
@@ -8,7 +10,7 @@ using Xunit;
 
 namespace PersonalUniverse.IntegrationTests.Infrastructure;
 
-public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class IntegrationTestFactory : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
     private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder()
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
@@ -48,7 +50,7 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
             // Override connection strings with test containers
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                config.AddInMemoryCollection(new Dictionary<string, string>
+                config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = SqlConnectionString,
                     ["ConnectionStrings:Redis"] = RedisConnectionString,

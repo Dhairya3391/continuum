@@ -4,9 +4,6 @@ using PersonalUniverse.VisualizationFeed.API.Hubs;
 
 namespace PersonalUniverse.VisualizationFeed.API.Services;
 
-/// <summary>
-/// Service for broadcasting universe updates to connected SignalR clients
-/// </summary>
 public class UniverseBroadcastService
 {
     private readonly IHubContext<UniverseHub> _hubContext;
@@ -20,9 +17,6 @@ public class UniverseBroadcastService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Broadcast universe state to all connected clients
-    /// </summary>
     public async Task BroadcastUniverseStateAsync(UniverseState state, string universeId = "default")
     {
         try
@@ -39,9 +33,6 @@ public class UniverseBroadcastService
         }
     }
 
-    /// <summary>
-    /// Broadcast particle update to clients following that particle
-    /// </summary>
     public async Task BroadcastParticleUpdateAsync(Particle particle)
     {
         try
@@ -57,9 +48,6 @@ public class UniverseBroadcastService
         }
     }
 
-    /// <summary>
-    /// Broadcast list of active particles
-    /// </summary>
     public async Task BroadcastActiveParticlesAsync(List<Particle> particles, string universeId = "default")
     {
         try

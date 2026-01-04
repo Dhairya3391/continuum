@@ -10,6 +10,9 @@ public class RedisCacheService : ICacheService
     private readonly ILogger<RedisCacheService> _logger;
     private readonly TimeSpan _defaultExpiry = TimeSpan.FromMinutes(30);
     private const string ActiveParticlesKey = "simulation:active_particles";
+    private const string UniverseStateKey = "simulation:universe_state";
+    private const string ParticlePrefix = "particle:";
+    private const string PersonalityPrefix = "personality:";
 
     public RedisCacheService(IConnectionMultiplexer redis, ILogger<RedisCacheService> logger)
     {
@@ -26,9 +29,11 @@ public class RedisCacheService : ICacheService
             
             if (value.IsNullOrEmpty)
             {
+                _logger.LogDebug("Cache miss for key {Key}", key);
                 return default;
             }
 
+            _logger.LogDebug("Cache hit for key {Key}", key);
             return JsonSerializer.Deserialize<T>((string)value!);
         }
         catch (Exception ex)
@@ -45,6 +50,7 @@ public class RedisCacheService : ICacheService
             var db = _redis.GetDatabase();
             var serialized = JsonSerializer.Serialize(value);
             await db.StringSetAsync(key, serialized, expiry ?? _defaultExpiry);
+            _logger.LogDebug("Cached value for key {Key} with expiry {Expiry}", key, expiry ?? _defaultExpiry);
         }
         catch (Exception ex)
         {
@@ -58,6 +64,7 @@ public class RedisCacheService : ICacheService
         {
             var db = _redis.GetDatabase();
             await db.KeyDeleteAsync(key);
+            _logger.LogDebug("Removed cached value for key {Key}", key);
         }
         catch (Exception ex)
         {
@@ -88,9 +95,11 @@ public class RedisCacheService : ICacheService
             
             if (value.IsNullOrEmpty)
             {
+                _logger.LogDebug("Active particles cache miss");
                 return Enumerable.Empty<Particle>();
             }
 
+            _logger.LogDebug("Active particles cache hit");
             return JsonSerializer.Deserialize<IEnumerable<Particle>>((string)value!) ?? Enumerable.Empty<Particle>();
         }
         catch (Exception ex)
@@ -107,10 +116,66 @@ public class RedisCacheService : ICacheService
             var db = _redis.GetDatabase();
             var serialized = JsonSerializer.Serialize(particles);
             await db.StringSetAsync(ActiveParticlesKey, serialized, TimeSpan.FromMinutes(5));
+            _logger.LogDebug("Cached {Count} active particles", particles.Count());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting active particles in cache");
+        }
+    }
+
+    public async Task CacheParticleAsync(Particle particle, CancellationToken cancellationToken = default)
+    {
+        await SetAsync($"{ParticlePrefix}{particle.Id}", particle, TimeSpan.FromMinutes(15), cancellationToken);
+    }
+
+    public async Task<Particle?> GetParticleAsync(Guid particleId, CancellationToken cancellationToken = default)
+    {
+        return await GetAsync<Particle>($"{ParticlePrefix}{particleId}", cancellationToken);
+    }
+
+    public async Task InvalidateParticleAsync(Guid particleId, CancellationToken cancellationToken = default)
+    {
+        await RemoveAsync($"{ParticlePrefix}{particleId}", cancellationToken);
+    }
+
+    public async Task CachePersonalityMetricsAsync(PersonalityMetrics metrics, CancellationToken cancellationToken = default)
+    {
+        await SetAsync($"{PersonalityPrefix}{metrics.ParticleId}", metrics, TimeSpan.FromHours(1), cancellationToken);
+    }
+
+    public async Task<PersonalityMetrics?> GetPersonalityMetricsAsync(Guid particleId, CancellationToken cancellationToken = default)
+    {
+        return await GetAsync<PersonalityMetrics>($"{PersonalityPrefix}{particleId}", cancellationToken);
+    }
+
+    public async Task CacheUniverseStateAsync(UniverseState state, CancellationToken cancellationToken = default)
+    {
+        await SetAsync(UniverseStateKey, state, TimeSpan.FromMinutes(10), cancellationToken);
+    }
+
+    public async Task<UniverseState?> GetUniverseStateAsync(CancellationToken cancellationToken = default)
+    {
+        return await GetAsync<UniverseState>(UniverseStateKey, cancellationToken);
+    }
+
+    public async Task ClearSimulationCacheAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var db = _redis.GetDatabase();
+            var server = _redis.GetServer(_redis.GetEndPoints().First());
+            
+            var keys = server.Keys(pattern: "simulation:*").ToArray();
+            if (keys.Length > 0)
+            {
+                await db.KeyDeleteAsync(keys);
+                _logger.LogInformation("Cleared {Count} simulation cache keys", keys.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error clearing simulation cache");
         }
     }
 }

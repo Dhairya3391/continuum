@@ -1,6 +1,7 @@
 using PersonalUniverse.Shared.Contracts.Interfaces;
 using PersonalUniverse.Shared.Models.Entities;
 using PersonalUniverse.Shared.Models.DTOs;
+using PersonalUniverse.Shared.Models.Mappers;
 
 namespace PersonalUniverse.SimulationEngine.API.Services;
 
@@ -42,7 +43,7 @@ public class ParticleService : IParticleService
         if (existing != null)
         {
             _logger.LogWarning("User {UserId} already has a particle {ParticleId}", userId, existing.Id);
-            return MapToDto(existing);
+            return ParticleMapper.ToDto(existing);
         }
 
         // Create new particle at random position
@@ -79,11 +80,13 @@ public class ParticleService : IParticleService
         };
 
         await _metricsRepository.AddAsync(metrics, cancellationToken);
+        await _cacheService.CacheParticleAsync(particle, cancellationToken);
+        await _cacheService.CachePersonalityMetricsAsync(metrics, cancellationToken);
 
         _logger.LogInformation("Spawned particle {ParticleId} for user {UserId} at ({X}, {Y})", 
             particleId, userId, particle.PositionX, particle.PositionY);
 
-        return MapToDto(particle);
+        return ParticleMapper.ToDto(particle);
     }
 
     public async Task<IEnumerable<ParticleDto>> GetActiveParticlesAsync(CancellationToken cancellationToken = default)
@@ -92,26 +95,28 @@ public class ParticleService : IParticleService
         var cachedParticles = await _cacheService.GetActiveParticlesAsync(cancellationToken);
         if (cachedParticles.Any())
         {
-            return cachedParticles.Select(MapToDto);
+            return ParticleMapper.ToDtos(cachedParticles);
         }
 
-        // Fallback to database
         var particles = await _particleRepository.GetActiveParticlesAsync(cancellationToken);
         var particleList = particles.ToList();
         
-        // Cache for future requests
         if (particleList.Any())
         {
             await _cacheService.SetActiveParticlesAsync(particleList, cancellationToken);
         }
         
-        return particleList.Select(MapToDto);
+        return ParticleMapper.ToDtos(particleList);
     }
 
     public async Task<ParticleDto?> GetParticleByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var particle = await _particleRepository.GetByUserIdAsync(userId, cancellationToken);
-        return particle == null ? null : MapToDto(particle);
+        if (particle != null)
+        {
+            await _cacheService.CacheParticleAsync(particle, cancellationToken);
+        }
+        return particle == null ? null : ParticleMapper.ToDto(particle);
     }
 
     public async Task<bool> UpdateParticleStateAsync(ParticleUpdateDto updateDto, CancellationToken cancellationToken = default)
@@ -130,22 +135,11 @@ public class ParticleService : IParticleService
         particle.State = Enum.Parse<ParticleState>(updateDto.State);
         particle.LastUpdatedAt = DateTime.UtcNow;
 
-        return await _particleRepository.UpdateAsync(particle, cancellationToken);
-    }
-
-    private static ParticleDto MapToDto(Particle particle)
-    {
-        return new ParticleDto(
-            particle.Id,
-            particle.UserId,
-            particle.PositionX,
-            particle.PositionY,
-            particle.VelocityX,
-            particle.VelocityY,
-            particle.Mass,
-            particle.Energy,
-            particle.State.ToString(),
-            particle.DecayLevel
-        );
+        var updated = await _particleRepository.UpdateAsync(particle, cancellationToken);
+        if (updated)
+        {
+            await _cacheService.CacheParticleAsync(particle, cancellationToken);
+        }
+        return updated;
     }
 }

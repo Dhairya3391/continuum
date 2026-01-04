@@ -9,7 +9,9 @@ using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 using StackExchange.Redis;
+using PersonalUniverse.SimulationEngine.API;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +98,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Add rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 // Add CORS
 builder.Services.AddCors(options =>
 {
@@ -118,8 +137,42 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add Hangfire Dashboard
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
+
+// Schedule recurring jobs
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+    // Daily simulation tick at midnight UTC
+    recurringJobManager.AddOrUpdate<SimulationJobs>(
+        "daily-universe-tick",
+        job => job.ProcessDailyTickAsync(),
+        "0 0 * * *", // Every day at midnight
+        new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.Utc
+        });
+    
+    // Decay processing every 6 hours
+    recurringJobManager.AddOrUpdate<SimulationJobs>(
+        "particle-decay-check",
+        job => job.ProcessParticleDecayAsync(),
+        "0 */6 * * *", // Every 6 hours
+        new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.Utc
+        });
+}
+
 app.MapControllers();
 
 app.Run();
