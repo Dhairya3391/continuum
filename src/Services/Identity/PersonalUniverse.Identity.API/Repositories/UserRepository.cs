@@ -46,8 +46,8 @@ public class UserRepository : IUserRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            INSERT INTO Users (Id, Username, Email, PasswordHash, ExternalProvider, ExternalId, CreatedAt, LastLoginAt)
-            VALUES (@Id, @Username, @Email, @PasswordHash, @ExternalProvider, @ExternalId, @CreatedAt, @LastLoginAt)";
+            INSERT INTO Users (Id, Username, Email, PasswordHash, AuthProvider, ExternalId, CreatedAt, LastLoginAt)
+            VALUES (@Id, @Username, @Email, @PasswordHash, @AuthProvider, @ExternalId, @CreatedAt, @LastLoginAt)";
         
         await connection.ExecuteAsync(sql, user);
         return user.Id;
@@ -61,7 +61,7 @@ public class UserRepository : IUserRepository
             SET Username = @Username, 
                 Email = @Email, 
                 PasswordHash = @PasswordHash,
-                ExternalProvider = @ExternalProvider,
+                AuthProvider = @AuthProvider,
                 ExternalId = @ExternalId,
                 LastLoginAt = @LastLoginAt
             WHERE Id = @Id";

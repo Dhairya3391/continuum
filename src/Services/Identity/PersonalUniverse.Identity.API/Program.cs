@@ -16,8 +16,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 // Add database connection factory
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") 
+    ?? builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string not found in environment or configuration.");
 builder.Services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(connectionString));
 
 // Register repositories
@@ -32,10 +33,15 @@ builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
 // Configure JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
+var jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+    ?? builder.Configuration["Jwt:SecretKey"] 
     ?? throw new InvalidOperationException("JWT SecretKey not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PersonalUniverseClients";
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
+    ?? builder.Configuration["Jwt:Issuer"] 
+    ?? "PersonalUniverseSimulator";
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
+    ?? builder.Configuration["Jwt:Audience"] 
+    ?? "PersonalUniverseClients";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -62,7 +68,7 @@ builder.Services.AddRateLimiter(options =>
             factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
-                PermitLimit = 5,
+                PermitLimit = 100, // Increased for testing
                 Window = TimeSpan.FromMinutes(1)
             });
     });
@@ -92,8 +98,7 @@ app.MapScalarApiReference(options =>
 
 // Add health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "Identity", timestamp = DateTime.UtcNow }))
-   .WithName("HealthCheck")
-   .WithOpenApi();
+   .WithName("HealthCheck");
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");

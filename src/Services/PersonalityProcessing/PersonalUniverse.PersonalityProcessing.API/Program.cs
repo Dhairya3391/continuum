@@ -1,7 +1,7 @@
 using Scalar.AspNetCore;
 using PersonalUniverse.PersonalityProcessing.API.Services;
-using PersonalUniverse.Storage.API.Data;
-using PersonalUniverse.Storage.API.Repositories;
+using PersonalUniverse.PersonalityProcessing.API.Data;
+using PersonalUniverse.PersonalityProcessing.API.Repositories;
 using PersonalUniverse.Shared.Contracts.Interfaces;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,8 +16,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 // Add database connection factory
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") 
+    ?? builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string not found in environment or configuration.");
 builder.Services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(connectionString));
 
 // Register repositories
@@ -29,7 +30,8 @@ builder.Services.AddScoped<IDailyInputRepository, DailyInputRepository>();
 builder.Services.AddScoped<IPersonalityService, PersonalityService>();
 
 // Configure JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
+var jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+    ?? builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PersonalUniverseClients";

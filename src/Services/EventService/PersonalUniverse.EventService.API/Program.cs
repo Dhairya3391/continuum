@@ -12,12 +12,18 @@ builder.Services.AddOpenApi();
 // Configure RabbitMQ settings
 var rabbitMqSettings = new RabbitMqSettings
 {
-    HostName = builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
-    Port = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
-    UserName = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
-    Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
-    VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
-    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events",
+    HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
+    Port = int.TryParse(Environment.GetEnvironmentVariable("RABBITMQ_PORT"), out var port) ? port 
+        : builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
+    UserName = Environment.GetEnvironmentVariable("RABBITMQ_USERNAME") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
+    Password = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
+    VirtualHost = Environment.GetEnvironmentVariable("RABBITMQ_VHOST") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
+    ExchangeName = Environment.GetEnvironmentVariable("RABBITMQ_EXCHANGE") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events",
     ExchangeType = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeType") ?? "topic"
 };
 

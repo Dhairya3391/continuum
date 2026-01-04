@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.22" />
     <PackageReference Include="Hangfire.Core" Version="1.8.22" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.22" />
@@ -20,11 +22,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\Models\PersonalUniverse.Shared.Models\PersonalUniverse.Shared.Models.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\PersonalUniverse.Shared.Contracts\PersonalUniverse.Shared.Contracts.csproj" />
-    <ProjectReference Include="..\..\Storage\PersonalUniverse.Storage.API\PersonalUniverse.Storage.API.csproj">
-      <Private>false</Private>
-      <ExcludeAssets>contentfiles;build</ExcludeAssets>
-      <IncludeAssets>compile;runtime</IncludeAssets>
-    </ProjectReference>
   </ItemGroup>
 
 </Project>

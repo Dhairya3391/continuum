@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.11.10" />
@@ -15,11 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\Models\PersonalUniverse.Shared.Models\PersonalUniverse.Shared.Models.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\PersonalUniverse.Shared.Contracts\PersonalUniverse.Shared.Contracts.csproj" />
-    <ProjectReference Include="..\..\Storage\PersonalUniverse.Storage.API\PersonalUniverse.Storage.API.csproj">
-      <Private>false</Private>
-      <ExcludeAssets>contentfiles;build</ExcludeAssets>
-      <IncludeAssets>compile;runtime</IncludeAssets>
-    </ProjectReference>
   </ItemGroup>
 
 </Project>

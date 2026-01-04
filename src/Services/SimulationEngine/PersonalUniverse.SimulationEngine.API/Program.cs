@@ -1,8 +1,8 @@
 using Scalar.AspNetCore;
 using PersonalUniverse.SimulationEngine.API.Services;
 using PersonalUniverse.SimulationEngine.API.Jobs;
-using PersonalUniverse.Storage.API.Data;
-using PersonalUniverse.Storage.API.Repositories;
+using PersonalUniverse.SimulationEngine.API.Data;
+using PersonalUniverse.SimulationEngine.API.Repositories;
 using PersonalUniverse.Shared.Contracts.Interfaces;
 using Hangfire;
 using Hangfire.SqlServer;
@@ -25,8 +25,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddHostedService<PersonalUniverse.SimulationEngine.API.BackgroundServices.UniverseTickBackgroundService>();
 
 // Add database connection factory
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") 
+    ?? builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string not found in environment or configuration.");
 builder.Services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(connectionString));
 
 // Register repositories
@@ -37,12 +38,18 @@ builder.Services.AddScoped<IUniverseStateRepository, UniverseStateRepository>();
 // Configure RabbitMQ event publishing
 var rabbitMqSettings = new RabbitMqSettings
 {
-    Host = builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
-    Port = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
-    Username = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
-    Password = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
-    VirtualHost = builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
-    ExchangeName = builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events"
+    Host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost",
+    Port = int.TryParse(Environment.GetEnvironmentVariable("RABBITMQ_PORT"), out var port) ? port 
+        : builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672),
+    Username = Environment.GetEnvironmentVariable("RABBITMQ_USERNAME") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest",
+    Password = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest",
+    VirtualHost = Environment.GetEnvironmentVariable("RABBITMQ_VHOST") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
+    ExchangeName = Environment.GetEnvironmentVariable("RABBITMQ_EXCHANGE") 
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events"
 };
 builder.Services.AddSingleton(rabbitMqSettings);
 builder.Services.AddSingleton<ISimulationEventPublisher, SimulationEventPublisher>();
@@ -54,7 +61,9 @@ builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<SimulationJobs>();
 
 // Configure Redis
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING") 
+    ?? builder.Configuration.GetConnectionString("Redis") 
+    ?? "localhost:6379";
 var redis = ConnectionMultiplexer.Connect(redisConnectionString);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
@@ -76,7 +85,8 @@ builder.Services.AddHangfire(configuration => configuration
 builder.Services.AddHangfireServer();
 
 // Configure JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
+var jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+    ?? builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PersonalUniverseClients";
