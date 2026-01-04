@@ -13,6 +13,7 @@ public class RabbitMqSettings
     public string Password { get; set; } = "guest";
     public string VirtualHost { get; set; } = "/";
     public string ExchangeName { get; set; } = "personaluniverse.events";
+    public bool UseSsl { get; set; } = false;
 }
 
 public interface ISimulationEventPublisher
@@ -45,7 +46,12 @@ public class SimulationEventPublisher : ISimulationEventPublisher, IDisposable
                 Port = settings.Port,
                 UserName = settings.Username,
                 Password = settings.Password,
-                VirtualHost = settings.VirtualHost
+                VirtualHost = settings.VirtualHost,
+                Ssl = new SslOption
+                {
+                    Enabled = settings.UseSsl,
+                    ServerName = settings.Host
+                }
             };
 
             _connection = factory.CreateConnection();

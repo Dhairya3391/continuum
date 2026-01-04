@@ -24,11 +24,25 @@ public class JwtService : IJwtService
     public JwtService(IConfiguration configuration)
     {
         _configuration = configuration;
-        _secretKey = _configuration["Jwt:SecretKey"] 
+
+        // Prefer environment variables (used by integration env) before falling back to appsettings
+        _secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+            ?? _configuration["Jwt:SecretKey"]
             ?? throw new InvalidOperationException("JWT SecretKey not configured");
-        _issuer = _configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
-        _audience = _configuration["Jwt:Audience"] ?? "PersonalUniverseClients";
-        _expirationMinutes = int.Parse(_configuration["Jwt:ExpirationMinutes"] ?? "60");
+
+        _issuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+            ?? _configuration["Jwt:Issuer"]
+            ?? "PersonalUniverseSimulator";
+
+        _audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+            ?? _configuration["Jwt:Audience"]
+            ?? "PersonalUniverseClients";
+
+        var expiration = Environment.GetEnvironmentVariable("JWT_EXPIRATION_MINUTES")
+            ?? _configuration["Jwt:ExpirationMinutes"]
+            ?? "60";
+
+        _expirationMinutes = int.Parse(expiration);
     }
 
     public string GenerateToken(User user)

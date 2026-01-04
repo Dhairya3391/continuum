@@ -183,6 +183,11 @@ EventLogs (Id, EventType, ParticleId, Data, Timestamp)
 - RabbitMQ: Host, Port, Credentials, Exchange
 - Redis: Connection string
 - Service URLs for inter-service communication
+- RabbitMQ toggles: RABBITMQ_USE_SSL for amqps endpoints, RABBITMQ_ALLOW_NOOP to control fallback to no-op publisher/subscriber
+- Visualization broadcast override: VISUALIZATION_FEED_URL (or Services:VisualizationFeed:Url) for SimulationEngine → VisualizationFeed pushes
+
+#### Local Service Helper
+- Use scripts/run-service.sh <service> to start a single microservice with .env loaded (avoids missing JWT/DB/RabbitMQ settings)
 
 #### Docker Compose Configuration
 - All services defined

@@ -9,4 +9,5 @@ public class RabbitMqSettings
     public string VirtualHost { get; set; } = "/";
     public string ExchangeName { get; set; } = "personaluniverse.events";
     public string ExchangeType { get; set; } = "topic";
+    public bool UseSsl { get; set; } = false;
 }

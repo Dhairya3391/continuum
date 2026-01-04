@@ -69,7 +69,16 @@ public class UniverseTickBackgroundService : BackgroundService
     {
         try
         {
-            var visualizationUrl = _configuration["Services:VisualizationFeed:Url"] ?? "https://localhost:5006";
+            var visualizationUrl = Environment.GetEnvironmentVariable("VISUALIZATION_FEED_URL")
+                ?? Environment.GetEnvironmentVariable("VISUALIZATION_SERVICE_URL")
+                ?? _configuration["Services:VisualizationFeed:Url"]
+                ?? "http://localhost:5006";
+
+            if (visualizationUrl == "http://localhost:5006")
+            {
+                _logger.LogWarning("VisualizationFeed URL not configured; using local default {Url}", visualizationUrl);
+            }
+
             var response = await _httpClient.PostAsJsonAsync(
                 $"{visualizationUrl}/api/broadcast/universe-state",
                 universeState,

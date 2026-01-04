@@ -3,44 +3,78 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PersonalUniverse.Identity.API;
-using Testcontainers.MsSql;
-using Testcontainers.RabbitMq;
-using Testcontainers.Redis;
 using Xunit;
 
 namespace PersonalUniverse.IntegrationTests.Infrastructure;
 
 public class IntegrationTestFactory : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
-    private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder()
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-        .WithPassword("TestP@ssw0rd123!")
-        .Build();
+    private readonly string _sqlConnectionString;
+    private readonly string _redisConnectionString;
+    private readonly string _rabbitHost;
+    private readonly string _rabbitPort;
+    private readonly string _rabbitUsername;
+    private readonly string _rabbitPassword;
+    private readonly string _rabbitVhost;
+    private readonly string _rabbitExchange;
 
-    private readonly RabbitMqContainer _rabbitMqContainer = new RabbitMqBuilder()
-        .WithImage("rabbitmq:4-management")
-        .Build();
-
-    private readonly RedisContainer _redisContainer = new RedisBuilder()
-        .WithImage("redis:7-alpine")
-        .Build();
-
-    public string SqlConnectionString => _sqlContainer.GetConnectionString();
-    public string RabbitMqConnectionString => _rabbitMqContainer.GetConnectionString();
-    public string RedisConnectionString => _redisContainer.GetConnectionString();
-
-    public async Task InitializeAsync()
+    public IntegrationTestFactory()
     {
-        await _sqlContainer.StartAsync();
-        await _rabbitMqContainer.StartAsync();
-        await _redisContainer.StartAsync();
+        LoadDotEnv();
+
+        _sqlConnectionString = RequireEnv("DB_CONNECTION_STRING");
+        _redisConnectionString = RequireEnv("REDIS_CONNECTION_STRING");
+        _rabbitHost = RequireEnv("RABBITMQ_HOST");
+
+        _rabbitPort = Environment.GetEnvironmentVariable("RABBITMQ_PORT") ?? "5672";
+        _rabbitUsername = Environment.GetEnvironmentVariable("RABBITMQ_USERNAME") ?? "guest";
+        _rabbitPassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
+        _rabbitVhost = Environment.GetEnvironmentVariable("RABBITMQ_VHOST") ?? "/";
+        _rabbitExchange = Environment.GetEnvironmentVariable("RABBITMQ_EXCHANGE") ?? "personaluniverse.events";
     }
 
-    public new async Task DisposeAsync()
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public new Task DisposeAsync() => Task.CompletedTask;
+
+    private static string RequireEnv(string key)
     {
-        await _sqlContainer.DisposeAsync();
-        await _rabbitMqContainer.DisposeAsync();
-        await _redisContainer.DisposeAsync();
+        var value = Environment.GetEnvironmentVariable(key);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"Integration tests require {key} to be set (no Docker). Load .env or export the variable.");
+        }
+
+        return value;
+    }
+
+    private static void LoadDotEnv()
+    {
+        var current = AppContext.BaseDirectory;
+        for (var i = 0; i < 10 && current is not null; i++)
+        {
+            var candidate = Path.Combine(current, ".env");
+            if (File.Exists(candidate))
+            {
+                foreach (var line in File.ReadAllLines(candidate))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                    var idx = line.IndexOf('=');
+                    if (idx <= 0) continue;
+                    var key = line[..idx].Trim();
+                    var val = line[(idx + 1)..].Trim();
+                    if (!string.IsNullOrEmpty(key))
+                    {
+                        Environment.SetEnvironmentVariable(key, val);
+                    }
+                }
+                return;
+            }
+
+            var parent = Directory.GetParent(current);
+            if (parent == null) break;
+            current = parent.FullName;
+        }
     }
 
     protected override IHost CreateHost(IHostBuilder builder)
@@ -52,12 +86,14 @@ public class IntegrationTestFactory : WebApplicationFactory<IApiMarker>, IAsyncL
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:DefaultConnection"] = SqlConnectionString,
-                    ["ConnectionStrings:Redis"] = RedisConnectionString,
-                    ["RabbitMQ:Host"] = _rabbitMqContainer.Hostname,
-                    ["RabbitMQ:Port"] = _rabbitMqContainer.GetMappedPublicPort(5672).ToString(),
-                    ["RabbitMQ:Username"] = "guest",
-                    ["RabbitMQ:Password"] = "guest",
+                    ["ConnectionStrings:DefaultConnection"] = _sqlConnectionString,
+                    ["ConnectionStrings:Redis"] = _redisConnectionString,
+                    ["RabbitMQ:Host"] = _rabbitHost,
+                    ["RabbitMQ:Port"] = _rabbitPort,
+                    ["RabbitMQ:Username"] = _rabbitUsername,
+                    ["RabbitMQ:Password"] = _rabbitPassword,
+                    ["RabbitMQ:VirtualHost"] = _rabbitVhost,
+                    ["RabbitMQ:ExchangeName"] = _rabbitExchange,
                     ["Jwt:SecretKey"] = "TestSecretKeyForIntegrationTests123!@#",
                     ["Jwt:Issuer"] = "PersonalUniverseSimulator",
                     ["Jwt:Audience"] = "PersonalUniverseClients"

@@ -25,7 +25,12 @@ public class EventSubscriber : IEventSubscriber, IDisposable
             Port = settings.Port,
             UserName = settings.UserName,
             Password = settings.Password,
-            VirtualHost = settings.VirtualHost
+            VirtualHost = settings.VirtualHost,
+            Ssl = new SslOption
+            {
+                Enabled = settings.UseSsl,
+                ServerName = settings.HostName
+            }
         };
 
         try

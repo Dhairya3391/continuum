@@ -58,6 +58,7 @@ public class AuthenticationService : IAuthenticationService
         // Create user
         var user = new User
         {
+            Id = Guid.NewGuid(),
             Username = registrationDto.Username,
             Email = registrationDto.Email,
             PasswordHash = passwordHash,
@@ -150,6 +151,7 @@ public class AuthenticationService : IAuthenticationService
             // Create new user from Google info
             user = new User
             {
+                Id = Guid.NewGuid(),
                 Username = googleUserInfo.Name.Replace(" ", "").ToLower() + "_" + Guid.NewGuid().ToString().Substring(0, 6),
                 Email = googleUserInfo.Email,
                 PasswordHash = string.Empty, // No password for OAuth users

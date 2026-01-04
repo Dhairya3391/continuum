@@ -36,6 +36,11 @@ builder.Services.AddScoped<IPersonalityMetricsRepository, PersonalityMetricsRepo
 builder.Services.AddScoped<IUniverseStateRepository, UniverseStateRepository>();
 
 // Configure RabbitMQ event publishing
+var useSsl = bool.TryParse(Environment.GetEnvironmentVariable("RABBITMQ_USE_SSL"), out var envUseSsl)
+    ? envUseSsl
+    : builder.Configuration.GetValue<bool?>("RabbitMQ:UseSsl")
+        ?? (builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672) == 5671);
+
 var rabbitMqSettings = new RabbitMqSettings
 {
     Host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") 
@@ -49,7 +54,8 @@ var rabbitMqSettings = new RabbitMqSettings
     VirtualHost = Environment.GetEnvironmentVariable("RABBITMQ_VHOST") 
         ?? builder.Configuration.GetValue<string>("RabbitMQ:VirtualHost") ?? "/",
     ExchangeName = Environment.GetEnvironmentVariable("RABBITMQ_EXCHANGE") 
-        ?? builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events"
+        ?? builder.Configuration.GetValue<string>("RabbitMQ:ExchangeName") ?? "personaluniverse.events",
+    UseSsl = useSsl
 };
 builder.Services.AddSingleton(rabbitMqSettings);
 builder.Services.AddSingleton<ISimulationEventPublisher, SimulationEventPublisher>();
@@ -73,7 +79,7 @@ builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseInMemoryStorage());
+    .UseMemoryStorage());
 
 builder.Services.AddHangfireServer();
 
@@ -81,8 +87,12 @@ builder.Services.AddHangfireServer();
 var jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
     ?? builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PersonalUniverseClients";
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+    ?? builder.Configuration["Jwt:Issuer"]
+    ?? "PersonalUniverseSimulator";
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+    ?? builder.Configuration["Jwt:Audience"]
+    ?? "PersonalUniverseClients";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

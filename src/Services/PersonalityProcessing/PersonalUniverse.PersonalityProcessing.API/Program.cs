@@ -33,8 +33,12 @@ builder.Services.AddScoped<IPersonalityService, PersonalityService>();
 var jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
     ?? builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PersonalUniverseSimulator";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PersonalUniverseClients";
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+    ?? builder.Configuration["Jwt:Issuer"]
+    ?? "PersonalUniverseSimulator";
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+    ?? builder.Configuration["Jwt:Audience"]
+    ?? "PersonalUniverseClients";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
