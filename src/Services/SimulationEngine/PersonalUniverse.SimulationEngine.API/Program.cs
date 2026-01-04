@@ -5,7 +5,7 @@ using PersonalUniverse.SimulationEngine.API.Data;
 using PersonalUniverse.SimulationEngine.API.Repositories;
 using PersonalUniverse.Shared.Contracts.Interfaces;
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -68,19 +68,12 @@ var redis = ConnectionMultiplexer.Connect(redisConnectionString);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
-// Add Hangfire
+// Add Hangfire with in-memory storage for now
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
-    {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true
-    }));
+    .UseInMemoryStorage());
 
 builder.Services.AddHangfireServer();
 
